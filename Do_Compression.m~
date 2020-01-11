@@ -2,16 +2,14 @@
 clc
 clear all
 
-% FileName='Lena.tif';
-% Orig_I1=imread(FileName);
-Orig_I1       = double(imread('/Users/zoe/desktop/images/lena.tif'));
-% image_small=double(imread('lena_small.tif'));
-image_small = double(imread('/Users/zoe/desktop/images/lena_small.tif'));
+FileName='Lena.tif';
+Orig_I1=imread(FileName);
+image_small=double(imread('lena_small.tif'));
 
 %color space transforms
 % yy=rgb2ycbcr(Orig_I1);
-[t_enc,t_off] = my_pca(Orig_I1); % PCA version:
-yy = my_ictRGB2YCbCr(Orig_I1,t_enc,t_off);
+[t_enc,t_off] = my_pca(Orig_I1); % pca version:
+
 Orig_I2 = yy;
 
 %Note some useful Imformation
@@ -63,8 +61,7 @@ prediction=denoiseImage(rec_image1(:,:,1),net);
 rec_image = cat(3,prediction,rec_image1(:,:,2:3));
 
 %%plot
-% rec_image_final=ycbcr2rgb(rec_image);
-rec_image_final = my_ictYCbCr2RGB(rec_image,t_enc,t_off); % PCA version
+rec_image_final=ycbcr2rgb(rec_image);
 filename=sprintf('reconstruction_image_compression_ration%d.png',rate);
 imwrite(rec_image_final, filename);
 size(rec_image_final)
