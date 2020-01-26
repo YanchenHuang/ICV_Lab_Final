@@ -3,8 +3,8 @@ clear all
 
 
 lena_small_rgb = double(imread('lena_small.tif'));
-first_frame_rgb = double(imread('D:\ÎÒµÄ¼á¹ûÔÆ\LAB_File\1\5\Chapter5\foreman20_40_RGB\foreman0020.bmp'));
-second_frame_rgb = double(imread('D:\ÎÒµÄ¼á¹ûÔÆ\LAB_File\1\5\Chapter5\foreman20_40_RGB\foreman0021.bmp'));
+first_frame_rgb = double(imread('/home/ge36sif/Matlab/IVC/Data/foreman0020.bmp'));
+second_frame_rgb = double(imread('/home/ge36sif/Matlab/IVC/Data/foreman0021.bmp'));
 lena_small = ictRGB2YCbCr(lena_small_rgb);
 first_frame = ictRGB2YCbCr(first_frame_rgb);
 second_frame = ictRGB2YCbCr(second_frame_rgb);
@@ -81,21 +81,30 @@ for scaleIdx = 1 : numel(scales)
     %% train Huffman table for residuals on first residual(second frame)
     second_frame_rec = SSD_rec(I_rec,mv_indices);
     residual = second_frame - second_frame_rec;
-    k = IntraEncode(residual, qScale); % according to fig.25, need to encode the residual before transmit
+    for j=1:3
+    k = intraEncoder_1(residual(:,:,j), qScale,j); % according to fig.25, need to encode the residual before transmit
     PMF = hist(k(:),-1500:1500);
     PMF = PMF/sum(PMF);
-    [BinaryTree_R, HuffCode_R, BinCode_R, Codelengths_R] = buildHuffman(PMF);
+        if j==1
+            [BinaryTree_R_1, HuffCode_R_1, BinCode_R_1, Codelengths_R_1] = buildHuffman(PMF);
+        elseif j==2
+            [BinaryTree_R_2, HuffCode_R_2, BinCode_R_2, Codelengths_R_2] = buildHuffman(PMF);
+        else
+            [BinaryTree_R_3, HuffCode_R_3, BinCode_R_3, Codelengths_R_3] = buildHuffman(PMF);
+        end
+    end
     
     %%%%%%%%%%%%%%%%% Encode and decode the 2 to N frame
     for i = 1:20
-        current_frame_name = ['D:\ÎÒµÄ¼á¹ûÔÆ\LAB_File\1\5\Chapter5\foreman20_40_RGB\foreman00',int2str(20+i),'.bmp'];
+        current_frame_name = ['/home/ge36sif/Matlab/IVC/Data/foreman00',int2str(20+i),'.bmp'];
         current_frame_rgb = double(imread(current_frame_name));
         current_frame = ictRGB2YCbCr(current_frame_rgb); 
         mv_indices = SSD(I_rec(:,:,1), current_frame(:,:,1));
         current_frame_rec = SSD_rec(I_rec,mv_indices);
         residual = current_frame - current_frame_rec;
         for Layer=1:3
-        k = intraEncoder_1(residual(:,:,Layer), qScale);
+            
+        k = intraEncoder_1(residual(:,:,Layer), qScale,Layer);
         
         %% use trained table to encode MV to get the bytestream
         bytestream_MV = enc_huffman_new(mv_indices-1+1, BinCode_MV, Codelengths_MV);
@@ -103,23 +112,24 @@ for scaleIdx = 1 : numel(scales)
         
         %% use trained table to encode residual to get the bytestream
         bytestream_R = enc_huffman_new(k-(-1500)+1, BinCode_R, Codelengths_R);
-        bpp_R_1 = (numel(bytestream_R)*8) / (numel(current_frame)/3);
-        end
+        bpp_R_1(Layer) = (numel(bytestream_R)*8) / (numel(current_frame)/3);
+        
         %% note down the bpp to the array
-        bpp(i+1) = bpp_MV_1 + bpp_R_1;
+        bpp(i+1) = bpp_MV_1 + sum(bpp_R_1);
         
         %% image reconstruction
-         mv_rec = dec_huffman_new(bytestream_MV, BinaryTree_MV,length(mv_indices(:)))+1)-1;
+        %mv_rec = dec_huffman_new(bytestream_MV, BinaryTree_MV,length(mv_indices(:)))+1)-1;
         % mv_rec = reshape(mv_rec,size(mv_indices));
         % since huffman is the lossless transmit, here mv_rec should be
         % exactly the same as mv_indices
-        current_ssd_rec = SSD_rec(mv_rec, mv_indices);
+        current_ssd_rec = SSD_rec(I_rec, mv_indices);
         
         % k_rec = dec_huffman_new(bytestream_R, BinaryTree_R,length(k(:)))+(-1500)-1;
         % since huffman is the lossless transmit, here k_rec should be the
         % same with k, thus the upper line could be commented
-        residual_rec = IntraDecoder_1(k,qScale,Layer);
         
+        residual_rec(:,:,Layer) = IntraDecoder_1(k,qScale,Layer);
+        end
         I_rec = current_ssd_rec + residual_rec;
         I_rec_rgb = ictYCbCr2RGB(I_rec);
         PSNR(i+1) = calcPSNR(current_frame_rgb,I_rec_rgb);
@@ -129,15 +139,15 @@ for scaleIdx = 1 : numel(scales)
 end
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% %%                          æŠ˜çº¿å›?
+% %%                          æŠ˜çº¿ï¿½?
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-plot(bitperpixel_av_still,PSNR_av_still,'-*r',bitperpixel_av,PSNR_av,'-*b'); %çº¿æ?§ï¼Œé¢œè‰²ï¼Œæ ‡è®?
+plot(bitperpixel_av_still,PSNR_av_still,'-*r',bitperpixel_av,PSNR_av,'-*b'); %çº¿ï¿½?ï¿½ï¼Œé¢œè‰²ï¼Œæ ‡ï¿½?
 axis.XLim = [0 4.5];
 axis.YLim = [24 42];
 axis.XTick = 0:0.1:4.5;
 axis.YTick = 24:2:42;
-xlabel('bpp');  %xè½´åæ ‡æè¿?
-ylabel('PSNR[dB]'); %yè½´åæ ‡æè¿?
+xlabel('bpp');  %xè½´åæ ‡æï¿½?
+ylabel('PSNR[dB]'); %yè½´åæ ‡æï¿½?
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % %%                           sub-functions
