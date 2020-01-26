@@ -288,10 +288,12 @@ for ii = block_length:block_length:height_im-block_length
 %                 av_pixel = 52;
 %             end
             res1 = abs(upper_block_pixel - down_block_pixel);
-            res2 = abs(upper_block(block_length,kk) - upper_block(block_length-1,kk));
-            res3 = abs(down_block(1,kk) - down_block(2,kk));
+            %res2 = abs(upper_block(block_length,kk) - upper_block(block_length-1,kk));
+            %res3 = abs(down_block(1,kk) - down_block(2,kk));
+            res2 = abs(down_block(2,kk) - upper_block(block_length-1,kk));
 %             if (res1<alpha(av_pixel)) && (res2<beta(av_pixel)) && (res3<beta(av_pixel))
-            if (res1<alpha_fix) && (res2<beta_fix) && (res3<beta_fix)
+            %if (res1<alpha_fix) && (res2<beta_fix) && (res3<beta_fix)
+            if (res1<alpha_fix) && (res2<beta_fix)
                 counter = counter + 1;
                 block_ref = [image(ii-1,jj+kk-1,hh);image(ii,jj+kk-1,hh);image(ii+1,jj+kk-1,hh);image(ii+2,jj+kk-1,hh)];
                 weighted_sum_value = weight*block_ref;
@@ -320,10 +322,12 @@ for jj = block_length:block_length:width_im-block_length
 %                 av_pixel = 52;
 %             end
             res1 = abs(left_block_pixel - right_block_pixel);
-            res2 = abs(left_block(kk,block_length) - left_block(kk,block_length-1));
-            res3 = abs(right_block(kk,1) - right_block(kk,2));
+            %res2 = abs(left_block(kk,block_length) - left_block(kk,block_length-1));
+            %res3 = abs(right_block(kk,1) - right_block(kk,2));
+            res2 = abs(right_block(kk,2) - left_block(kk,block_length-1));
 %             if (res1<alpha(av_pixel)) && (res2<beta(av_pixel)) && (res3<beta(av_pixel))
-            if (res1<alpha_fix) && (res2<beta_fix) && (res3<beta_fix)
+            %if (res1<alpha_fix) && (res2<beta_fix) && (res3<beta_fix)
+            if (res1<alpha_fix) && (res2<beta_fix)
                 counter = counter + 1;
                 block_ref = [image(ii+kk-1,jj-1,hh);image(ii+kk-1,jj,hh);image(ii+kk-1,jj+1,hh);image(ii+kk-1,jj+2,hh)];
                 weighted_sum_value = weight*block_ref;
