@@ -1,4 +1,4 @@
-function out = func_MySPIHT_Enc(m, max_bits, block_size, level,fl_dp)
+function out = func_SPIHT_Enc(m, max_bits, block_size, level,fl_dp)
 % Matlab implementation of SPIHT 
 %
 % Encoder
@@ -15,7 +15,7 @@ function out = func_MySPIHT_Enc(m, max_bits, block_size, level,fl_dp)
 %-----------   Initialization  -----------------
 bitctr = 0;
 out = 2*ones(1,max_bits);
-n_max = floor(log2(abs(max(max(m)'))));
+n_max = floor(log2(abs(max(max(m)'))));%the choose of n_max
 Bits_Header = 0;
 Bits_LSP = 0;
 Bits_LIP = 0;
@@ -30,7 +30,8 @@ if s_1<s_2
 else
     ss=s_2;
 end
-
+bandsize = ceil(2.^ceil((log2(ss) - level + 1)));
+%n_max = floor(log2(abs(max(max(m(1:bandsize,1:bandsize))'))))%the choose of n_max???????????????????????????????????
 out(1,[1 2 3 4 5]) = [s_1 s_2 n_max level fl_dp];
 bitctr = bitctr + 24;
 index = 6;
@@ -38,7 +39,8 @@ Bits_Header = Bits_Header + 24;
 
 %-----------   Initialize LIP, LSP, LIS   ----------------
 temp = [];
-bandsize = ceil(2.^ceil((log2(ss) - level + 1)));
+%bandsize = ceil(2.^ceil((log2(ss) - level + 1)));
+%n_max = floor(log2(abs(max(max(m(1:bandsize,1:bandsize))'))));%the choose of n_max???????????????????????????????????
 temp1 = 1 : bandsize;
 for i = 1 : bandsize
     temp = [temp; temp1];
@@ -75,6 +77,8 @@ while(bitctr < max_bits)
             return
         end
         if abs(m(LIPtemp(i,1),LIPtemp(i,2))) >= 2^n % 1: positive; 0: negative
+            %test
+            %fprintf("ADD LSP\n");
             out(index) = 1;
             bitctr = bitctr + 1;
             index = index +1; 

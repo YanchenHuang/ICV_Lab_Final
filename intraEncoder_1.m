@@ -1,4 +1,4 @@
-function [img_enc,S,level,Lo_D,Hi_D,Lo_R,Hi_R]=intraEncoder_1(img,rate,ij)
+function [img_enc,S,level,Lo_D,Hi_D,Lo_R,Hi_R]=intraEncoder_1(img,rate,ij,qScalar)
 %input: img: YCbCr image of oringinal Image
 %       rate: qScale
 fl_dp=8;
@@ -52,7 +52,6 @@ fl_dp=8;
 
         [I_W, S] = func_DWT(Orig_I, level, Lo_D, Hi_D);
 %         [I_W_S,S1]=func_DWT(Orig_I_small,level_s, Lo_D, Hi_D);
-        
         % Use SPIHT to compress the bit stream
         img_enc = func_SPIHT_Enc(I_W, max_bits, (nRow)*(nColumn), level, fl_dp);
 %         img_enc_s(:,:,ij) = func_SPIHT_Enc(I_W_S, max_bits_s, (nRow_s)*(nColumn_s), level_s, fl_dp);

@@ -1,4 +1,4 @@
-function [img_dec]=intraDecoder_1(img,S, Lo_R, Hi_R, level)
+function [img_dec]=intraDecoder_1(img, S, Lo_R, Hi_R, level,qScalar)
 %input: hoffman decoded coeffs
 
 %output: decoded coeffs
