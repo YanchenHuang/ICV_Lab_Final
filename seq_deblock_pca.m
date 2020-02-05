@@ -15,34 +15,38 @@ scales_1 = 0.15:0.3:1.5;
 scales_2 = 1.8:1:6;
 scales_3 = 7:2.5:15;
 scales = [scales_1,scales_2,scales_3];
+%scales = 1.0;
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % %%                     still image codec
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-for scaleIdx = 1 : numel(scales)
-    qScale   = scales(scaleIdx);
-    k_small  = IntraEncode(lena_small, qScale);
-    k        = IntraEncode(first_frame, qScale);
-        
-    %% use pmf of k_small to build and train huffman table
-    pmf_lena_small = hist(k_small(:),min(k):max(k));
-    pmf_lena_small = pmf_lena_small/sum(pmf_lena_small);
-    [BinaryTree, HuffCode, BinCode, Codelengths] = buildHuffman(pmf_lena_small);
-        
-    %% use trained table to encode k to get the bytestream
-    bytestream = enc_huffman_new(k-min(k)+1, BinCode, Codelengths);
-    bitPerPixel = (numel(bytestream)*8) / (numel(first_frame)/3);
-    
-    %% image reconstruction
-    k_rec = dec_huffman_new(bytestream,BinaryTree,max(size(k)))+min(k)-1;
-    I_rec = IntraDecode(k_rec, size(first_frame),qScale);
-    I_rec_rgb = my_ictYCbCr2RGB(I_rec,t_enc,t_off);
-    deblock_I_rec_rgb = deblock(I_rec_rgb);
-    %deblock_I_rec_rgb = DeblockFilter(I_rec_rgb);
-    PSNR = calcPSNR(first_frame_rgb, deblock_I_rec_rgb);
-    
-    bitperpixel_av_still(scaleIdx) = bitPerPixel;
-    PSNR_av_still(scaleIdx) = PSNR;
-end
+% for scaleIdx = 1 : numel(scales)
+%     qScale   = scales(scaleIdx);
+%     k_small  = IntraEncode(lena_small, qScale);
+%     k        = IntraEncode(first_frame, qScale);
+%         
+%     %% use pmf of k_small to build and train huffman table
+%     pmf_lena_small = hist(k_small(:),min(k):max(k));
+%     pmf_lena_small = pmf_lena_small/sum(pmf_lena_small);
+%     [BinaryTree, HuffCode, BinCode, Codelengths] = buildHuffman(pmf_lena_small);
+%         
+%     %% use trained table to encode k to get the bytestream
+%     bytestream = enc_huffman_new(k-min(k)+1, BinCode, Codelengths);
+%     bitPerPixel = (numel(bytestream)*8) / (numel(first_frame)/3);
+%     
+%     %% image reconstruction
+%     k_rec = dec_huffman_new(bytestream,BinaryTree,max(size(k)))+min(k)-1;
+%     I_rec = IntraDecode(k_rec, size(first_frame),qScale);
+%     %I_rec_rgb = my_ictYCbCr2RGB(I_rec,t_enc,t_off);
+%     I_rec_rgb = ictYCbCr2RGB(I_rec);
+%     %[t_dec,p] = my_least_square(first_frame_rgb,I_rec,t_off);
+%     %I_rec_rgb = my_ictYCbCr2RGB_ls(I_rec,t_dec,p,t_off);
+%     deblock_I_rec_rgb = deblock(I_rec_rgb);
+%     %deblock_I_rec_rgb = DeblockFilter(I_rec_rgb);
+%     PSNR = calcPSNR(first_frame_rgb, I_rec_rgb);
+%     
+%     bitperpixel_av_still(scaleIdx) = bitPerPixel;
+%     PSNR_av_still(scaleIdx) = PSNR;
+% end
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % %%                     video codec
@@ -65,12 +69,14 @@ for scaleIdx = 1 : numel(scales)
     %% image reconstruction
     k_rec = dec_huffman_new(bytestream,BinaryTree,max(size(k)))+min(k)-1;
     I_rec = IntraDecode(k_rec, size(first_frame),qScale);
-%     I_rec_rgb = ictYCbCr2RGB(I_rec);
-    I_rec_rgb = my_ictYCbCr2RGB(I_rec,t_enc,t_off);
-    deblock_I_rec_rgb = deblock(I_rec_rgb);
-    %deblock_I_rec_rgb = DeblockFilter(I_rec_rgb);
-    PSNR(1) = calcPSNR(first_frame_rgb, deblock_I_rec_rgb);
-    
+    %I_rec_rgb = ictYCbCr2RGB(I_rec);
+    %I_rec_rgb = my_ictYCbCr2RGB(I_rec,t_enc,t_off);
+    [t_dec,p] = my_least_square(first_frame_rgb,I_rec,t_off);
+    I_rec_rgb = my_ictYCbCr2RGB_ls(I_rec,t_dec,p,t_off);
+    I_rec_rgb = deblock(I_rec_rgb);
+    %I_rec_rgb = DeblockFilter(I_rec_rgb);
+    PSNR(1) = calcPSNR(first_frame_rgb, I_rec_rgb);
+
     %% train Huffman table for Motion vector on first Motion vector(between first and second frame)
     mv_indices = SSD(I_rec(:,:,1), second_frame(:,:,1)); % Note that here should be reconstucted img
     PMF = hist(mv_indices(:),1:81);
@@ -85,11 +91,12 @@ for scaleIdx = 1 : numel(scales)
     PMF = PMF/sum(PMF);
     [BinaryTree_R, HuffCode_R, BinCode_R, Codelengths_R] = buildHuffman(PMF);
     
+    fprintf("\tFrame %-4d, bitrate: %.4f [bps], PSNR: %.4f [dB]\n", 1, bpp(1), PSNR(1));
     %%%%%%%%%%%%%%%%% Encode and decode the 2 to N frame
     for i = 1:20
         current_frame_name = ['/Users/zoe/desktop/Sequences/foreman20_40_RGB/foreman00',int2str(20+i),'.bmp'];
         current_frame_rgb = double(imread(current_frame_name));
-%         current_frame = ictRGB2YCbCr(current_frame_rgb); 
+        %current_frame = ictRGB2YCbCr(current_frame_rgb); 
         current_frame = my_ictRGB2YCbCr(current_frame_rgb,t_enc,t_off);
         mv_indices = SSD(I_rec(:,:,1), current_frame(:,:,1));
         current_frame_rec = SSD_rec(I_rec,mv_indices);
@@ -99,10 +106,12 @@ for scaleIdx = 1 : numel(scales)
         %% use trained table to encode MV to get the bytestream
         bytestream_MV = enc_huffman_new(mv_indices-1+1, BinCode_MV, Codelengths_MV);
         bpp_MV = (numel(bytestream_MV)*8) / (numel(current_frame)/3);
+        bpp_MV_lc(i) = bpp_MV;
         
         %% use trained table to encode residual to get the bytestream
         bytestream_R = enc_huffman_new(k-(-1500)+1, BinCode_R, Codelengths_R);
         bpp_R = (numel(bytestream_R)*8) / (numel(current_frame)/3);
+        bpp_R_lc(i) = bpp_R;
         
         %% note down the bpp to the array
         bpp(i+1) = bpp_MV + bpp_R;
@@ -120,20 +129,25 @@ for scaleIdx = 1 : numel(scales)
         residual_rec = IntraDecode(k, size(residual),qScale);
         
         I_rec = current_ssd_rec + residual_rec;
-%         I_rec_rgb = ictYCbCr2RGB(I_rec);
-        I_rec_rgb = my_ictYCbCr2RGB(I_rec,t_enc,t_off);
-        deblock_I_rec_rgb = deblock(I_rec_rgb);
-        %deblock_I_rec_rgb = DeblockFilter(I_rec_rgb);
-        PSNR(i+1) = calcPSNR(current_frame_rgb,deblock_I_rec_rgb);
+        %I_rec_rgb = ictYCbCr2RGB(I_rec);
+        %I_rec_rgb = my_ictYCbCr2RGB(I_rec,t_enc,t_off);
+        [t_dec,p] = my_least_square(current_frame_rgb,I_rec,t_off);
+        I_rec_rgb = my_ictYCbCr2RGB_ls(I_rec,t_dec,p,t_off);
+        I_rec_rgb = deblock(I_rec_rgb);
+        %I_rec_rgb = DeblockFilter(I_rec_rgb);
+        PSNR(i+1) = calcPSNR(current_frame_rgb,I_rec_rgb);
+        fprintf("\tFrame %-4d, bitrate: %.4f [bps], PSNR: %.4f [dB]\n", i+1, bpp(i+1), PSNR(i+1));
     end
     bitperpixel_av(scaleIdx) = mean(bpp);
     PSNR_av(scaleIdx) = sum(PSNR)/numel(PSNR);
+    fprintf("\tbitrate: %.4f [bps], PSNR: %.4f [dB]\n", bitperpixel_av(scaleIdx), PSNR_av(scaleIdx));
 end
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % %%                          折线图
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 plot(bitperpixel_av_still,PSNR_av_still,'-*r',bitperpixel_av,PSNR_av,'-*b'); %线性，颜色，标记
+%plot(bitperpixel_av_all(2,:),PSNR_av_all(2,:),'-*r',bitperpixel_av_all(3,:),PSNR_av_all(3,:),'-*b');
 axis.XLim = [0 4.5];
 axis.YLim = [24 42];
 axis.XTick = 0:0.1:4.5;
@@ -172,6 +186,26 @@ dst = ZeroRunEnc(I_zigzag(:));
 end
 
 %% and many more functions
+
+function t_dec = find_best_dec(ori_rgbimg,ycbcr_img,t_enc,t_off,t_dec_ls)
+rec_rgbimg = my_ictYCbCr2RGB(ycbcr_img,t_enc,t_off);
+best_psnr = calcPSNR(ori_rgbimg, rec_rgbimg);
+disp(best_psnr)
+t_dec = inv(t_enc);
+offset = 0.000001;
+candidate_num = 1000;
+scales = -candidate_num*offset:offset:candidate_num*offset;
+for scaleIdx = 1 : numel(scales)
+    qScale   = scales(scaleIdx);
+    t_enc_mask = t_enc + qScale;
+    rec_rgbimg = my_ictYCbCr2RGB(ycbcr_img,t_enc_mask,t_off);
+    psnr_mask = calcPSNR(ori_rgbimg, rec_rgbimg);
+    if psnr_mask > best_psnr
+        t_dec = t_enc_mask;
+    end
+end
+end
+
 % function deblocked_img = deblock(image)
 % alpha = [0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	4	4	5	6	7	8	9	10	12	13 ...
 %       15	17	20	22	25	28	32	36	40	45	50	56	63	71	80	90	101	113	127	144	162	182	203	226	255	255];
@@ -339,7 +373,6 @@ for jj = block_length:block_length:width_im-block_length
     end
 end
 end
-disp(counter)
 end
 
 function [t_enc,t_off] = my_pca(image)
@@ -366,6 +399,52 @@ mask = t_enc(2,:);
 t_off(2,:) = -1*sum(mask(mask<0))*255 + 16;
 mask = t_enc(3,:);
 t_off(3,:) = -1*sum(mask(mask<0))*255 + 16;
+end
+
+function [t_dec,p] = my_least_square(ori_img,new_img,t_off)
+[height,width,channel] = size(ori_img);
+red_seq = reshape(ori_img(:,:,1),[height*width,1]);
+green_seq = reshape(ori_img(:,:,2),[height*width,1]);
+blue_seq = reshape(ori_img(:,:,3),[height*width,1]);
+% minus offset value
+new_img(:,:,1) = new_img(:,:,1) - t_off(1,:);
+new_img(:,:,2) = new_img(:,:,2) - t_off(2,:);
+new_img(:,:,3) = new_img(:,:,3) - t_off(3,:);
+new_img_mask = new_img;
+new_img_mask = reshape(new_img_mask,[height*width,channel]);
+%mask = inv(new_img.'*new_img)*(new_img.');
+% red_coeff = mask*red_seq;
+% green_coeff = mask*green_seq;
+% blue_coeff = mask*blue_seq;
+% use least square to get the inverse matrix
+red_coeff = regress(red_seq,new_img_mask);
+green_coeff = regress(green_seq,new_img_mask);
+blue_coeff = regress(blue_seq,new_img_mask);
+t_dec(1,:) = red_coeff;
+t_dec(2,:) = green_coeff;
+t_dec(3,:) = blue_coeff;
+ori_img_seq = ori_img;
+ori_img_seq = reshape(ori_img_seq,[height*width*channel,1]);
+% convert ycbcr to RGB
+rgb(:,:,1) = t_dec(1,1)*new_img(:,:,1) + t_dec(1,2)*new_img(:,:,2) + t_dec(1,3)*new_img(:,:,3);
+rgb(:,:,2) = t_dec(2,1)*new_img(:,:,1) + t_dec(2,2)*new_img(:,:,2) + t_dec(2,3)*new_img(:,:,3);
+rgb(:,:,3) = t_dec(3,1)*new_img(:,:,1) + t_dec(3,2)*new_img(:,:,2) + t_dec(3,3)*new_img(:,:,3);
+rgb = reshape(rgb,[height*width*channel,1]);
+% use polyfit to optimize the coefficient
+p = polyfit(rgb,ori_img_seq,3);
+end
+
+function new_rec_rgb = my_ictYCbCr2RGB_ls(yuv,t_dec,p,t_off)
+[height,width,channel] = size(yuv);
+yuv(:,:,1) = yuv(:,:,1) - t_off(1,:);
+yuv(:,:,2) = yuv(:,:,2) - t_off(2,:);
+yuv(:,:,3) = yuv(:,:,3) - t_off(3,:);
+rgb(:,:,1) = t_dec(1,1)*yuv(:,:,1) + t_dec(1,2)*yuv(:,:,2) + t_dec(1,3)*yuv(:,:,3);
+rgb(:,:,2) = t_dec(2,1)*yuv(:,:,1) + t_dec(2,2)*yuv(:,:,2) + t_dec(2,3)*yuv(:,:,3);
+rgb(:,:,3) = t_dec(3,1)*yuv(:,:,1) + t_dec(3,2)*yuv(:,:,2) + t_dec(3,3)*yuv(:,:,3);
+rgb = reshape(rgb,[height*width*channel,1]);
+new_rec_rgb = p(1)*(rgb.^3)+p(2)*(rgb.^2)+p(3)*rgb+p(4);
+new_rec_rgb = reshape(new_rec_rgb,[height,width,channel]);
 end
 
 function rgb = my_ictYCbCr2RGB(yuv,t_enc,t_off)
