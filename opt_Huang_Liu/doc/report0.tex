@@ -7,7 +7,7 @@
 \usepackage{graphicx}
 %\usepackage[hmarginratio=1:1,top=32mm,columnsep=20pt]{geometry} % Document margins
 %\usepackage[hmarginratio=1:1,top=30mm,columnsep= 6pt]{geometry} 
-\usepackage[left=1.2cm,right=1.2cm,top=2cm,columnsep= 20pt]{geometry}
+\usepackage[left=1.2cm,right=1.2cm,top=3.6cm,columnsep= 22pt]{geometry}
 \usepackage[hang, small,labelfont=bf,up,textfont=it,up]{caption} % Custom captions under/above floats in tables or figures
 \usepackage{booktabs} % Horizontal rules in tables
 \usepackage{amsmath}
@@ -198,7 +198,6 @@ To further optimize the result, polynomial curve fitting is applied to the conve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Deblocking filter is applied to reduce blocking distortion by smoothing the block edges. Based on H.264/AVC Loop filter\cite{deblock}, we first take vertical and horizontal edges of 8*8 macroblock as depicted in Fig.~\ref{fig:0}. \\
 \\
-\\
 \begin{figure}[h]
 \centering
 \includegraphics[scale=0.45]{boundary.png}
@@ -215,9 +214,9 @@ Thirdly, a 4-tap linear filter is applied with inputs p1, p0, q0, q1 if the filt
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section {Sparsity based adaptive quantization}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
-The basic idea of this algorithm is using the sparsity of the image to adptively choose the quantization table, namely the qScale. The sparsity shows the detail distribution in each area of the image. The sparsity can be determined by the larger parameters of each DCT Block. 
+The basic idea of this algorithm is using the sparsity of the image to adptively choose the quantization table, namely the qScale. Sparsity values give the distribution of the picture details in each area of the image. The sparsity can be determined by pixel values of each DCT Block. 
 \\
-The SparsityMap is determined by counting the number of larger parameters in each DCT block.
+The SparsityMap is determined by counting the number of larger values in each DCT block as shown in Algorithm 1.
 \begin{algorithm}[h]  
   \caption{: determine the Sparsity}
 	\begin{algorithmic}
@@ -225,7 +224,7 @@ The SparsityMap is determined by counting the number of larger parameters in eac
       the blockwise DCT transformed image  $I_{DCT}$;
     \Ensure
      	 $SparsityMap$ for the $I_{DCT}$;
-	\State
+	%\State
 	\For{$Block_{ij} \in I_{DCT}$}
       \State Threshold=GAMMA$\times$Max coefficient in DCT Block;
       \State N= numel(coefficients$\geqslant$threshold);
@@ -233,12 +232,12 @@ The SparsityMap is determined by counting the number of larger parameters in eac
     \EndFor	
 	\end{algorithmic}
 \end{algorithm} 
+\\
+The value GAMMA is image specific. In this project I take the GAMMA value as 0.015 for the Foreman video sequence.  
+According to the SparsityMap, some blocks contains more details, i.e., the greater the value in SparsityMap is, the more picture details that block has. \\
+Then the quantization scale can be adptively chosen according to the SparsityMap. The basic concept is defined in Algorithm 2.
 
-The value GAMMA is image specific. In this paper I take the GAMMA value as 0.015 for the Foreman video sequence.  
-According to the SparsityMap it is shown, that which block contains more details. It means that the greater the number in SparsityMap is, the more details information that block has. \\
-Then the quantization scale can be adptively chosen according to the SparsityMap. The basic concept is:
-
-\begin{algorithm}[h]  
+\begin{algorithm}[!h]  
   \caption{:determine the qScale}
 	\begin{algorithmic}
 	\Require
@@ -255,24 +254,24 @@ Then the quantization scale can be adptively chosen according to the SparsityMap
     \EndFor	
 	\end{algorithmic}
 \end{algorithm} 
-The $SparsityMap$ tells us how much detailed information is contained in each block. And we totally divide them into 8 levels(8 contains most detail information).And for the up level, namely $level$ $\in$ [5:8],the quantization factor qScale will be increased. otherwise it will be decreased.     
+The $SparsityMap$ tells us how much detailed information is contained in each block. And we totally divide them into 8 levels (level 8 contains the most detail information). And for the upper level, namely $level$ $\in$ [5:8],the quantization factor qScale will be increased, otherwise it will be decreased.     
 \\
-The other step of the whole compression is basically the same as follow. 
+Other steps of the whole compression process are depicted in Fig.~\ref{fig:1}. 
 
 \begin{figure}[ht]
 \centering
-\includegraphics[scale=0.42]{flowDiagram.png}
+\includegraphics[scale=0.44]{flowDiagram.png}
 \caption{DCT based Image/video compression}
 \label{fig:1}
 \end{figure}
 
+\newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section {DWT-SPIHT based image and video compression}
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 The progress of DWT-SPIHT based image and video compression is very similar to the previous DCT based Compression. The Difference is that instead of dividing the source image to many blocks and do DCT for each block, DWT-SPIHT based compression do n-level DWT for the whole image and quantize them with SPIHT algorithm. 
 \subsection{DWT}
-when we do the DWT transform we use the $Bior 4.4$ filter.\cite{PCA}The DWT process of the image is as follows.
+We do the DWT transform based on $Bior 4.4$ filter\cite{JPEG}. The DWT process of the image is as follow:
 
 \begin{algorithm} 
   \caption{:$n$ levels DWT}
@@ -295,11 +294,15 @@ when we do the DWT transform we use the $Bior 4.4$ filter.\cite{PCA}The DWT proc
     \EndFor	
 	\end{algorithmic}
 \end{algorithm} 
-the DWT transformed image will be saved as $I_{DWT}$,which seems like a multi-divided quadrate. and then seems it contains too much coefficient. The $I_{DWT}$ should be quantized and compressed with SPIHT algorithm. The SPIHT algrithm is very similar to EZW algorithm.
+
+The DWT transformed image will be saved as $I_{DWT}$, which seems like a multi-divided quadrate. It contains too much coefficients, thus $I_{DWT}$ should be quantized and compressed with SPIHT algorithm. The SPIHT algrithm is very similar to EZW algorithm.
   
 \subsection {SPIHT algorithm}
-The SPIHT algorithm based on EZW algorithm. It applies the same Successive-Approximation Quantization. The main difference of the SPIHT algorithm to EZW algotirhm is that the SPIHT algorithm used a patial orientation tree to more efficiently represent the coefficient structure. The "patial orientation tree" allows it eliminate some root, that for example except the root all the other node are unimportant. 
-\begin{algorithm}[t]  
+The SPIHT algorithm is based on EZW algorithm and it applies the same Successive-Approximation Quantization. The main difference between SPIHT algorithm and EZW algotirhm is that the SPIHT algorithm used a partial orientation tree to more efficiently represent the coefficient structure. The "partial orientation tree" allows it eliminate some roots, for example the root which all the other child nodes are unimportant. 
+\\
+\\
+\\
+\begin{algorithm}[!h]
   \caption{:SPIHT algorithm}
 	\begin{algorithmic}
 	\State \textbf{Initialization} ;
@@ -331,7 +334,7 @@ The SPIHT algorithm based on EZW algorithm. It applies the same Successive-Appro
 
 	\EndIf
 	\EndFor 
-	\State\textbf{Refinement Pass}
+	\State \textbf{Refinement Pass}
 	\State \textbf{Process LSP}
 	\For{$all\ element\ in\ LSP\ list\ except\ those\ just\ added\ above$}
 		\State Output the nth most significant bit of coeff
@@ -343,8 +346,8 @@ The SPIHT algorithm based on EZW algorithm. It applies the same Successive-Appro
 	\end{algorithmic}
 \end{algorithm} 
 
- 
 
+\newpage
 %----------------------------------------------------------------------------------------
 %	REFERENCE LIST
 %----------------------------------------------------------------------------------------
@@ -361,8 +364,9 @@ Youngjun Yoo Antonio O. and Bin Yu. adptive quantization of image subbands with 
 Accessed 31.01.2020.
 \bibitem {book} K. S. Thyagarajan. Still Image and video compression with Matlab. ISBN 978-0-470-48416-6 
 \bibitem {CS} David Fridovich-Keil and Grace Kuo. Compressed Sensing for Image Compression.
-\bibitem{JPEG} Gregory Wallace, The JPEG Still Image Compression Standard, 
-\bibitem{lecture} Prof. Dr.-Ing. Eckehard Steinbach. Multidimensional signal processing Lecture Skript
-\bibitem{SPIHT} SPHIT Algorithm. http://www.ws.binghamton.edu/fowler/fowler$\%$20personal$\%$20page/EE523$\_$files/SPIHT$\_$Charts.pdf. 
+\bibitem{JPEG} Gregory Wallace, The JPEG Still Image Compression Standard.
+\bibitem{lecture} Prof. Dr.-Ing. Eckehard Steinbach. Multidimensional signal processing Lecture Skript.
+\bibitem{SPIHT} SPIHT algorithm. \\
+https://en.wikipedia.org/wiki/Set\_partitioning\_in\_hierarchical\_trees. Accessed 02.02.2020.
 \end{thebibliography}
 \end{document}
